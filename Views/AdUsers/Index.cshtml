@@ -1,0 +1,46 @@
+﻿@model IEnumerable<AdAdminPortal.Models.AdUserDto>
+
+@{
+    ViewData["Title"] = "Пользователи AD";
+    var q = ViewBag.Query as string;
+}
+
+<h2>Пользователи AD</h2>
+
+<form method="get" class="mb-3">
+    <input type="text" name="q" value="@q" placeholder="sam, ФИО или e-mail" />
+    <button type="submit">Поиск</button>
+</form>
+
+@if (!Model.Any())
+{
+    <p>Пока ничего не найдено. Введите строку поиска.</p>
+}
+else
+{
+    <table border="1" cellpadding="5" cellspacing="0">
+        <tr>
+            <th>SAM</th>
+            <th>Имя</th>
+            <th>E-mail</th>
+            <th>Статус</th>
+            <th></th>
+        </tr>
+        @foreach (var u in Model)
+        {
+            <tr>
+                <td>@u.Sam</td>
+                <td>@u.DisplayName</td>
+                <td>@u.Email</td>
+                <td>@(u.Enabled ? "Включён" : "Отключён")</td>
+                <td>
+                    <a asp-action="Details" asp-route-id="@u.Sam">Подробнее</a>
+                </td>
+            </tr>
+        }
+    </table>
+}
+<p>
+    <a asp-action="Create">Создать нового пользователя</a> |
+    <a asp-controller="AdGroups" asp-action="Index">Управление группами</a>
+</p>

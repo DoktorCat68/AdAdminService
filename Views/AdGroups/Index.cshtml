@@ -1,0 +1,40 @@
+﻿@model IEnumerable<string>
+
+@{
+    ViewData["Title"] = "Группы AD";
+    var q = ViewBag.Query as string;
+}
+
+<h2>Группы AD</h2>
+
+<form method="get" class="mb-3">
+    <input type="text" name="q" value="@q" placeholder="sam группы" />
+    <button type="submit">Поиск</button>
+</form>
+
+@if (!Model.Any())
+{
+    <p>Пока ничего не найдено. Введите строку поиска.</p>
+}
+else
+{
+    <table border="1" cellpadding="5" cellspacing="0">
+        <tr>
+            <th>Группа (SAM)</th>
+            <th></th>
+        </tr>
+        @foreach (var g in Model)
+        {
+            <tr>
+                <td>@g</td>
+                <td>
+                    <a asp-action="Details" asp-route-id="@g">Подробнее</a>
+                </td>
+            </tr>
+        }
+    </table>
+}
+
+<p style="margin-top:1rem;">
+    <a asp-action="Create">Создать новую группу</a>
+</p>

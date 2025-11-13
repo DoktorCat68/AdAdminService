@@ -1,0 +1,30 @@
+﻿@model AdAdminPortal.Models.OuTreeNode
+
+<li>
+    <div class="ou-node">
+        @if (Model.Children.Any())
+        {
+            <span class="ou-toggle" onclick="toggleNode(this)">▸</span>
+        }
+        else
+        {
+            <span class="ou-toggle ou-empty"></span>
+        }
+
+        <span class="ou-label"
+              data-dn="@Model.DistinguishedName"
+              onclick="selectOu(this)">
+            @Model.Name
+        </span>
+    </div>
+
+    @if (Model.Children.Any())
+    {
+        <ul class="ou-children collapsed">
+            @foreach (var child in Model.Children)
+            {
+                @Html.Partial("_OuTreeNode", child)
+            }
+        </ul>
+    }
+</li>

@@ -1,0 +1,232 @@
+﻿@model AdAdminPortal.Models.CreateAdUserViewModel
+
+@{
+    ViewData["Title"] = "Создание пользователя AD";
+}
+
+<h2>Создание пользователя</h2>
+
+@if (!string.IsNullOrEmpty(Model.TemplateSam))
+{
+    <p style="margin-bottom:.5rem; color:#555;">
+        Создание нового пользователя по образцу: <b>@Model.TemplateSam</b><br/>
+        <label>
+            <input type="checkbox" asp-for="CloneGroups" />
+            Копировать группы доступа с @Model.TemplateSam
+        </label>
+    </p>
+}
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+
+    <fieldset style="margin-bottom:1rem;">
+        <legend>Учетная запись</legend>
+        <div>
+            <label asp-for="Sam">Логин (sAMAccountName)</label><br />
+            <input asp-for="Sam" id="Sam" />
+            <button type="button" onclick="generateLogin()" style="margin-left:.5rem;">
+                Сгенерировать логин
+            </button>
+            <span asp-validation-for="Sam" style="color:red;"></span>
+        </div>
+        <div style="margin-top:.5rem;">
+            <label asp-for="Password">Пароль</label><br />
+            <input asp-for="Password" type="password" />
+            <span asp-validation-for="Password" style="color:red;"></span>
+        </div>
+        <div>
+            <label asp-for="ConfirmPassword">Подтверждение пароля</label><br />
+            <input asp-for="ConfirmPassword" type="password" />
+            <span asp-validation-for="ConfirmPassword" style="color:red;"></span>
+        </div>
+    </fieldset>
+
+    <fieldset style="margin-bottom:1rem;">
+        <legend>ФИО</legend>
+        <div>
+            <label asp-for="FirstName">Имя</label><br />
+            <input asp-for="FirstName" />
+        </div>
+        <div>
+            <label asp-for="MiddleName">Отчество</label><br />
+            <input asp-for="MiddleName" />
+        </div>
+        <div>
+            <label asp-for="LastName">Фамилия</label><br />
+            <input asp-for="LastName" />
+        </div>
+        <p style="font-size:smaller;color:#666;">
+            Отображаемое имя будет сгенерировано как: <code>Имя И. Фамилия</code>
+        </p>
+    </fieldset>
+
+    <fieldset style="margin-bottom:1rem;">
+        <legend>Дополнительно</legend>
+        <div>
+            <label asp-for="Email">E-mail</label><br />
+            <input asp-for="Email" type="email" />
+        </div>
+        <div>
+            <label asp-for="JobTitle">Должность</label><br />
+            <input asp-for="JobTitle" />
+        </div>
+        <div>
+            <label asp-for="Telephone">Телефон</label><br />
+            <input asp-for="Telephone" />
+        </div>
+    </fieldset>
+
+    <fieldset style="margin-bottom:1rem;">
+        <legend>OU (контейнер)</legend>
+
+        <input asp-for="SelectedOu" type="hidden" id="SelectedOu" />
+
+        <p style="font-size:smaller;color:#666;">
+            Выберите OU в дереве. Вложенные OU показываются при раскрытии родительских.
+        </p>
+
+        <div id="ou-tree-container" style="border:1px solid #ccc; padding:.5rem; max-height:350px; overflow-y:auto;">
+            <ul class="ou-tree-root">
+                @foreach (var node in Model.OuTree)
+                {
+                    @Html.Partial("_OuTreeNode", node)
+                }
+            </ul>
+        </div>
+
+        <p style="font-size:smaller;color:#666; margin-top:.25rem;">
+            Выбранный OU: <span id="selected-ou-label">@Model.SelectedOu</span>
+        </p>
+    </fieldset>
+
+    <button type="submit">Создать</button>
+    <a asp-action="Index">Отмена</a>
+
+    <div asp-validation-summary="All" style="color:red; margin-top:1rem;"></div>
+</form>
+
+@section Scripts {
+<script>
+    function toggleNode(toggleSpan) {
+        const li = toggleSpan.closest('li');
+        const children = li.querySelector(':scope > ul.ou-children');
+        if (!children) return;
+
+        const collapsed = children.classList.toggle('collapsed');
+        toggleSpan.textContent = collapsed ? '▸' : '▾';
+    }
+
+    function selectOu(labelSpan) {
+        const dn = labelSpan.getAttribute('data-dn');
+        const hiddenInput = document.getElementById('SelectedOu');
+        const label = document.getElementById('selected-ou-label');
+
+        // снимаем выделение со всех
+        document.querySelectorAll('.ou-label').forEach(l => l.classList.remove('selected-ou'));
+        // выделяем текущий
+        labelSpan.classList.add('selected-ou');
+
+        hiddenInput.value = dn;
+        label.textContent = dn || "(по умолчанию)";
+    }
+     const translitMap = {
+        'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'y',
+        'к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f',
+        'х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'
+    };
+
+    function translit(str) {
+        if (!str) return "";
+        str = str.toLowerCase().trim();
+        let out = "";
+        for (let ch of str) {
+            const mapped = translitMap[ch];
+            if (mapped !== undefined) out += mapped;
+            else if (/[a-z0-9]/.test(ch)) out += ch; // латиница/цифры как есть
+            else if (ch === ' ' || ch === '-' || ch === '_') out += ''; // пробелы и прочее выкидываем
+            // остальные символы игнорируем
+        }
+        return out;
+    }
+
+    function capitalizeFirst(str) {
+        if (!str) return "";
+        return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    }
+    function generateLogin() {
+    const firstName = document.querySelector('input[name="FirstName"]')?.value || "";
+    const middleName = document.querySelector('input[name="MiddleName"]')?.value || "";
+    const lastName = document.querySelector('input[name="LastName"]')?.value || "";
+
+    if (!firstName || !lastName) {
+        alert("Для генерации логина нужны как минимум Имя и Фамилия.");
+        return;
+    }
+
+    // транслитируем имя и отчество, чтобы инициалы были латиницей
+    const firstTrans = translit(firstName);   
+    const midTrans   = translit(middleName);  
+
+    if (!firstTrans) {
+        alert("Не удалось транслитерировать имя.");
+        return;
+    }
+
+    let initials = firstTrans.charAt(0);      // d
+    if (midTrans) {
+        initials += midTrans.charAt(0);       // o
+    }
+
+    // фамилия в транслите, с нормальной капитализацией
+    const lastTranslit = capitalizeFirst(translit(lastName));  
+
+    const login = initials.toUpperCase() + "." + lastTranslit; 
+
+    const samInput = document.getElementById("Sam");
+    samInput.value = login;
+}
+
+</script>
+
+<style>
+    .ou-tree-root,
+    .ou-children {
+        list-style-type: none;
+        padding-left: 0.75rem;
+        margin: 0;
+    }
+
+    .ou-node {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        cursor: default;
+    }
+
+    .ou-toggle {
+        cursor: pointer;
+        width: 1rem;
+        display: inline-block;
+        text-align: center;
+        color: #555;
+    }
+
+    .ou-toggle.ou-empty {
+        visibility: hidden;
+    }
+
+    .ou-label {
+        cursor: pointer;
+    }
+
+    .ou-label.selected-ou {
+        font-weight: bold;
+        color: #0b5ed7;
+    }
+
+    .ou-children.collapsed {
+        display: none;
+    }
+</style>
+}

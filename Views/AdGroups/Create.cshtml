@@ -1,0 +1,116 @@
+﻿@model AdAdminPortal.Models.CreateGroupViewModel
+
+@{
+    ViewData["Title"] = "Создание группы AD";
+}
+
+<h2>Создание группы</h2>
+
+<form method="post">
+    <fieldset style="margin-bottom:1rem;">
+        <legend>Основное</legend>
+        <div>
+            <label asp-for="Sam">Имя группы (sAMAccountName)</label><br />
+            <input asp-for="Sam" />
+            <span asp-validation-for="Sam" style="color:red;"></span>
+        </div>
+        <div style="margin-top:.5rem;">
+            <label asp-for="Description">Описание</label><br />
+            <input asp-for="Description" style="width:400px;" />
+        </div>
+    </fieldset>
+
+    <fieldset style="margin-bottom:1rem;">
+        <legend>OU (контейнер)</legend>
+
+        <input asp-for="SelectedOu" type="hidden" id="SelectedOu" />
+
+        <p style="font-size:smaller;color:#666;">
+            Выберите OU в дереве. Вложенные OU показываются при раскрытии родительских.
+        </p>
+
+        <div id="ou-tree-container" style="border:1px solid #ccc; padding:.5rem; max-height:350px; overflow-y:auto;">
+            <ul class="ou-tree-root">
+                @foreach (var node in Model.OuTree)
+                {
+                    @Html.Partial("OuTreeNode", node)
+                }
+            </ul>
+        </div>
+
+        <p style="font-size:smaller;color:#666; margin-top:.25rem;">
+            Выбранный OU: <span id="selected-ou-label">@Model.SelectedOu</span>
+        </p>
+    </fieldset>
+
+    <button type="submit">Создать</button>
+    <a asp-action="Index">Отмена</a>
+
+    <div asp-validation-summary="All" style="color:red; margin-top:1rem;"></div>
+</form>
+
+@section Scripts {
+<script>
+    function toggleNode(toggleSpan) {
+        const li = toggleSpan.closest('li');
+        const children = li.querySelector(':scope > ul.ou-children');
+        if (!children) return;
+
+        const collapsed = children.classList.toggle('collapsed');
+        toggleSpan.textContent = collapsed ? '▸' : '▾';
+    }
+
+    function selectOu(labelSpan) {
+        const dn = labelSpan.getAttribute('data-dn');
+        const hiddenInput = document.getElementById('SelectedOu');
+        const label = document.getElementById('selected-ou-label');
+
+        document.querySelectorAll('.ou-label').forEach(l => l.classList.remove('selected-ou'));
+        labelSpan.classList.add('selected-ou');
+
+        hiddenInput.value = dn;
+        label.textContent = dn || "(по умолчанию)";
+    }
+</script>
+
+<style>
+    .ou-tree-root,
+    .ou-children {
+        list-style-type: none;
+        padding-left: 0.75rem;
+        margin: 0;
+    }
+
+    .ou-node {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        cursor: default;
+    }
+
+    .ou-toggle {
+        cursor: pointer;
+        width: 1rem;
+        display: inline-block;
+        text-align: center;
+        color: #555;
+    }
+
+    .ou-toggle.ou-empty {
+        visibility: hidden;
+    }
+
+    .ou-label {
+        cursor: pointer;
+    }
+
+    .ou-label.selected-ou {
+        font-weight: bold;
+        color: #0b5ed7;
+    }
+
+    .ou-children.collapsed {
+        display: none;
+    }
+</style>
+}

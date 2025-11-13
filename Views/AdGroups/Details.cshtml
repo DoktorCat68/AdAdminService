@@ -1,0 +1,185 @@
+﻿@{
+    ViewData["Title"] = "Группа " + (ViewBag.GroupSam as string);
+    var groupSam = ViewBag.GroupSam as string ?? "";
+    var members = ViewBag.Members as List<AdAdminPortal.Models.GroupMemberDto> ?? new();
+    var available = ViewBag.Available as List<AdAdminPortal.Models.GroupMemberDto> ?? new();
+}
+
+<h2>Группа @groupSam</h2>
+
+@if (TempData["Message"] != null)
+{
+    <div style="color:green;">@TempData["Message"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div style="color:red;">@TempData["Error"]</div>
+}
+
+<div style="display:flex; gap:1.5rem; align-items:flex-start; margin-top:1rem;">
+
+    <!-- ЛЕВАЯ ТАБЛИЦА: текущие члены -->
+    <div style="flex:1;">
+        <h3>Члены группы</h3>
+        <input type="text" id="filter-left" placeholder="фильтр." oninput="filterTable('left')" style="margin-bottom:.5rem; width:100%;" />
+        <table id="left-table" border="1" cellpadding="4" cellspacing="0" style="width:100%; border-collapse:collapse; max-height:300px;">
+            <thead>
+                <tr>
+                    <th>Тип</th>
+                    <th>Имя</th>
+                    <th>SAM</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var m in members)
+            {
+                var typeLabel = m.Type == AdAdminPortal.Models.GroupMemberType.User ? "Пользователь" : "Группа";
+                <tr data-name="@((m.DisplayName + " " + m.Sam).ToLower())"
+                    data-value="@( (m.Type == AdAdminPortal.Models.GroupMemberType.User ? "user:" : "group:") + m.Sam )">
+                    <td>@typeLabel</td>
+                    <td>@m.DisplayName</td>
+                    <td>@m.Sam</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- КНОПКИ -->
+    <div style="display:flex; flex-direction:column; gap:.5rem; margin-top:2.5rem;">
+        <form id="add-form" asp-action="AddMembers" method="post" style="text-align:center;">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@groupSam" />
+            <input type="hidden" name="members" id="add-members" />
+            <button type="submit" style="min-width:60px;">&lt;&lt;</button>
+            <!-- &lt;&lt; добавляем из ПРАВОЙ в ЛЕВУЮ -->
+        </form>
+
+        <form id="remove-form" asp-action="RemoveMembers" method="post" style="text-align:center;">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@groupSam" />
+            <input type="hidden" name="members" id="remove-members" />
+            <button type="submit" style="min-width:60px;">&gt;&gt;</button>
+            <!-- &gt;&gt; убираем из ЛЕВОЙ -->
+        </form>
+    </div>
+
+    <!-- ПРАВАЯ ТАБЛИЦА: доступные члены -->
+    <div style="flex:1;">
+        <h3>Доступные участники</h3>
+        <input type="text" id="filter-right" placeholder="фильтр." oninput="filterTable('right')" style="margin-bottom:.5rem; width:100%;" />
+        <table id="right-table" border="1" cellpadding="4" cellspacing="0" style="width:100%; border-collapse:collapse; max-height:300px;">
+            <thead>
+                <tr>
+                    <th>Тип</th>
+                    <th>Имя</th>
+                    <th>SAM</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var m in available)
+            {
+                var typeLabel = m.Type == AdAdminPortal.Models.GroupMemberType.User ? "Пользователь" : "Группа";
+                <tr data-name="@((m.DisplayName + " " + m.Sam).ToLower())"
+                    data-value="@( (m.Type == AdAdminPortal.Models.GroupMemberType.User ? "user:" : "group:") + m.Sam )">
+                    <td>@typeLabel</td>
+                    <td>@m.DisplayName</td>
+                    <td>@m.Sam</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<p style="margin-top:1rem;">
+    <a asp-action="Index">← Назад к списку групп</a>
+</p>
+
+@section Scripts {
+    <script>
+        let lastLeftIndex = null;
+        let lastRightIndex = null;
+        function filterTable(side) {
+            const input = document.getElementById(side === 'left' ? 'filter-left' : 'filter-right');
+            const table = document.getElementById(side === 'left' ? 'left-table' : 'right-table');
+            const val = input.value.toLowerCase();
+            for (const tr of table.tBodies[0].rows) {
+                const name = tr.getAttribute('data-name');
+                tr.style.display = name.includes(val) ? '' : 'none';
+            }
+        }
+
+        function setupSelectable(tableId, side) {
+            const table = document.getElementById(tableId);
+            const rows = Array.from(table.tBodies[0].rows);
+
+            rows.forEach((row, index) => {
+                row.addEventListener('click', function (e) {
+                    let useCtrl = e.ctrlKey || e.metaKey;
+                    let useShift = e.shiftKey;
+
+                    const visibleRows = rows.filter(r => r.style.display !== 'none');
+                    const visibleIndex = visibleRows.indexOf(row);
+
+                    if (useShift && (side === 'left' ? lastLeftIndex !== null : lastRightIndex !== null)) {
+                        const lastIndex = side === 'left' ? lastLeftIndex : lastRightIndex;
+                        const start = Math.min(lastIndex, visibleIndex);
+                        const end = Math.max(lastIndex, visibleIndex);
+                        visibleRows.forEach((r, i) => {
+                            if (i >= start && i <= end) {
+                                r.classList.add('selected');
+                            }
+                        });
+                    } else if (useCtrl) {
+                        row.classList.toggle('selected');
+                        if (side === 'left') lastLeftIndex = visibleIndex;
+                        else lastRightIndex = visibleIndex;
+                    } else {
+                        rows.forEach(r => r.classList.remove('selected'));
+                        row.classList.add('selected');
+                        if (side === 'left') lastLeftIndex = visibleIndex;
+                        else lastRightIndex = visibleIndex;
+                    }
+                });
+            });
+        }
+
+        setupSelectable('left-table', 'left');
+        setupSelectable('right-table', 'right');
+
+        document.getElementById('add-form').addEventListener('submit', function (e) {
+            const rows = document.querySelectorAll('#right-table tbody tr.selected');
+            const values = Array.from(rows).map(r => r.getAttribute('data-value'));
+            document.getElementById('add-members').value = values.join(',');
+            if (values.length === 0) {
+                e.preventDefault();
+            }
+        });
+
+        document.getElementById('remove-form').addEventListener('submit', function (e) {
+            const rows = document.querySelectorAll('#left-table tbody tr.selected');
+            const values = Array.from(rows).map(r => r.getAttribute('data-value'));
+            document.getElementById('remove-members').value = values.join(',');
+            if (values.length === 0) {
+                e.preventDefault();
+            }
+        });
+    </script>
+
+    <style>
+        tr.selected {
+            background-color: #cde4ff;
+        }
+        table tbody {
+            display: block;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        table thead, table tbody tr {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+    </style>
+}
